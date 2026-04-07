@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, displayName, email, photoURL, location, createdAt
+    //
+    // Collection: items
+    // Fields: id, title, description, price, category, images, sellerId, sellerName, location, createdAt, status
+    //
+    // Collection: chats
+    // Fields: id, participants, itemId, lastMessage, updatedAt
+    //
+    // Collection: chats/{chatId}/messages
+    // Fields: id, chatId, senderId, text, createdAt
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        request.auth.token.email == "khanmohammadahmad591@gmail.com" ||
+        request.auth.token.email == "khanmohammadahmad123@gmail.com"
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // User Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             (data.uid == request.auth.uid || isAdmin()) &&
+             isValidEmail(data.email) &&
+             data.createdAt is string;
+    }
+
+    // Shop Validation
+    function isValidShop(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'category', 'createdAt', 'status']) &&
+             data.ownerId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.category is string &&
+             data.status in ['open', 'closed'];
+    }
+
+    // Item Validation
+    function isValidItem(data) {
+      return data.keys().hasAll(['title', 'price', 'category', 'sellerId', 'createdAt', 'status']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.price is number && data.price >= 0 &&
+             data.category is string &&
+             (data.sellerId == request.auth.uid || isAdmin()) &&
+             data.status in ['active', 'sold'];
+    }
+
+    // Chat Validation
+    function isValidChat(data) {
+      return data.keys().hasAll(['participants', 'itemId', 'updatedAt']) &&
+             request.auth.uid in data.participants &&
+             data.participants.size() == 2;
+    }
+
+    // Message Validation
+    function isValidMessage(data) {
+      return data.keys().hasAll(['chatId', 'senderId', 'text', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000;
+    }
+
+    // Transaction Validation
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'amount', 'type', 'description', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.amount is number &&
+             data.type in ['earn', 'spend'];
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && (
+        isValidUser(request.resource.data) || 
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['hasShop', 'photoURL', 'displayName', 'location', 'coins', 'adCount', 'spinCount', 'scratchCount', 'lastActivityDate', 'lastCheckIn', 'isPremium', 'role'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+    }
+
+    match /shops/{shopId} {
+      // Public read access for all shops
+      allow read: if true;
+      // Only owner can create/update/delete their shop
+      allow write: if isAuthenticated() && request.auth.uid == shopId;
+    }
+
+    match /items/{itemId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && isValidItem(request.resource.data);
+      allow update: if isAuthenticated() && (
+        ((request.auth.uid == resource.data.sellerId || isAdmin()) && isValidItem(request.resource.data)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'isBoosted', 'boostExpiresAt']) && (request.auth.uid == resource.data.sellerId || isAdmin()))
+      );
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.sellerId || isAdmin());
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isAuthenticated() && isValidChat(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants || isAdmin());
+        allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants || isAdmin()) && isValidMessage(request.resource.data);
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated(); // Allow creating notifications (e.g., from chat)
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /following/{id} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.followerId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.followerId == request.auth.uid;
+    }
+
+    match /likes/{id} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /ratings/{id} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.raterId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.raterId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.raterId == request.auth.uid;
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL to user's profile picture." },
+        "location": { "type": "string", "description": "User's preferred location." },
+        "latitude": { "type": "number", "description": "User's current latitude." },
+        "longitude": { "type": "number", "description": "User's current longitude." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user account was created." }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Item": {
+      "title": "Item",
+      "description": "An item listed for sale.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the item." },
+        "title": { "type": "string", "description": "Title of the item." },
+        "description": { "type": "string", "description": "Detailed description of the item." },
+        "price": { "type": "number", "description": "Price of the item." },
+        "category": { "type": "string", "description": "Category the item belongs to." },
+        "images": { "type": "array", "items": { "type": "string", "format": "uri" }, "description": "List of image URLs." },
+        "sellerId": { "type": "string", "description": "UID of the seller." },
+        "sellerName": { "type": "string", "description": "Name of the seller." },
+        "location": { "type": "string", "description": "Location where the item is available." },
+        "latitude": { "type": "number", "description": "Latitude of the item's location." },
+        "longitude": { "type": "number", "description": "Longitude of the item's location." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the item was listed." },
+        "status": { "type": "string", "enum": ["active", "sold"], "description": "Current status of the item." }
+      },
+      "required": ["id", "title", "price", "category", "sellerId", "createdAt", "status"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A conversation between a buyer and a seller.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the chat." },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "UIDs of the participants." },
+        "itemId": { "type": "string", "description": "ID of the item being discussed." },
+        "lastMessage": { "type": "string", "description": "The most recent message in the chat." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the chat was last updated." }
+      },
+      "required": ["id", "participants", "itemId", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message in a chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the message." },
+        "chatId": { "type": "string", "description": "ID of the chat this message belongs to." },
+        "senderId": { "type": "string", "description": "UID of the message sender." },
+        "text": { "type": "string", "description": "The content of the message." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the message was sent." }
+      },
+      "required": ["id", "chatId", "senderId", "text", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the notification." },
+        "userId": { "type": "string", "description": "UID of the user receiving the notification." },
+        "title": { "type": "string", "description": "Title of the notification." },
+        "message": { "type": "string", "description": "Content of the notification." },
+        "type": { "type": "string", "enum": ["message", "system", "item_sold", "new_follower", "item_liked"], "description": "Type of notification." },
+        "read": { "type": "boolean", "description": "Whether the notification has been read." },
+        "link": { "type": "string", "description": "Optional link to navigate to." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the notification was created." }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Following": {
+      "title": "Following",
+      "description": "Relationship between a follower and a followed user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (followerId_followedId)." },
+        "followerId": { "type": "string", "description": "UID of the user who is following." },
+        "followedId": { "type": "string", "description": "UID of the user being followed." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the following started." }
+      },
+      "required": ["id", "followerId", "followedId", "createdAt"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "A user's like on an item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (userId_itemId)." },
+        "userId": { "type": "string", "description": "UID of the user who liked the item." },
+        "itemId": { "type": "string", "description": "ID of the item liked." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the item was liked." }
+      },
+      "required": ["id", "userId", "itemId", "createdAt"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "A rating given to a seller.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier." },
+        "sellerId": { "type": "string", "description": "UID of the seller being rated." },
+        "raterId": { "type": "string", "description": "UID of the user giving the rating." },
+        "score": { "type": "number", "description": "Rating score (1-5)." },
+        "comment": { "type": "string", "description": "Optional comment." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the rating was given." }
+      },
+      "required": ["id", "sellerId", "raterId", "score", "createdAt"]
+    },
+    "Shop": {
+      "title": "Shop",
+      "description": "A seller's digital storefront.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "UID of the shop owner." },
+        "name": { "type": "string", "description": "Name of the shop." },
+        "category": { "type": "string", "description": "Category of products sold." },
+        "status": { "type": "string", "enum": ["open", "closed"], "description": "Current status of the shop." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the shop was created." }
+      },
+      "required": ["ownerId", "name", "category", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profile documents." },
+    "/items/{id}": { "schema": "Item", "description": "Item listing documents." },
+    "/chats/{id}": { "schema": "Chat", "description": "Chat session documents." },
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages within a chat session." },
+    "/notifications/{id}": { "schema": "Notification", "description": "User notification documents." },
+    "/following/{id}": { "schema": "Following", "description": "Following relationship documents." },
+    "/likes/{id}": { "schema": "Like", "description": "Item like documents." },
+    "/ratings/{id}": { "schema": "Rating", "description": "Seller rating documents." },
+    "/shops/{id}": { "schema": "Shop", "description": "Seller shop documents." }
+  }
+}

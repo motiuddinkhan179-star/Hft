@@ -1,0 +1,7 @@
+{
+  "name": "OSL - Buy & Sell Anything",
+  "description": "A mobile-first marketplace for buying and selling items locally, featuring real-time chat, location-based search, and secure authentication.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
